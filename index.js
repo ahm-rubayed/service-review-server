@@ -17,7 +17,6 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
 
 function verifyJWT(req, res, next){
     const authHeader = req.headers.authorization;
-    console.log(req.headers)
 
     if(!authHeader){
         return res.status(401).send({message: 'unauthorized access'});
@@ -46,7 +45,12 @@ async function run() {
         })
 
         app.get("/services", async(req, res) => {
-            const query = {}    
+            const query = {} 
+            if (req.query.email) {
+                query = {
+                    email: req.query.email
+                }
+            }   
             const cursor = serviceCollection.find(query)
             const services = await cursor.toArray()
             res.send(services)
@@ -60,18 +64,7 @@ async function run() {
         })
 
         app.get('/reviews', verifyJWT, async (req, res) => {
-            const decoded = req.decoded;
-
-            if(decoded.email !== req.query.email){
-                res.status(403).send({message: 'unauthorized access'})
-            }
-
             let query = {};
-            if (req.query.email) {
-                query = {
-                    email: req.query.email
-                }
-            }
             const cursor = reviewCollection.find(query);
             const reviews = await cursor.toArray();
             res.send(reviews);
@@ -91,15 +84,15 @@ async function run() {
             res.send(result)
         })
 
-        app.post("/addservice", async(req, res) => {
+        app.post("/addservice", verifyJWT, async(req, res) => {
             const service = req.body;
             const result = await customServiceCollection.insertOne(service)
             res.send(result)
         })
 
-        app.patch('/reviews/:id', async (req, res) => {
+        app.patch('/reviews/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
-            const status = req.body.status
+            const status = req.body.status;
             const query = { _id: ObjectId(id) }
             const updatedDoc = {
                 $set:{
@@ -114,6 +107,19 @@ async function run() {
             const id = req.params.id;
             const query = { _id: ObjectId(id) };
             const result = await reviewCollection.deleteOne(query);
+            res.send(result);
+        })
+
+        app.patch('/reviews/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id;
+            const status = req.body.status
+            const query = { _id: ObjectId(id) }
+            const updatedDoc = {
+                $set:{
+                    status: status
+                }
+            }
+            const result = await orderCollection.updateOne(query, updatedDoc);
             res.send(result);
         })
     }
